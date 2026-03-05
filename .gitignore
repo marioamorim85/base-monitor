@@ -40,3 +40,6 @@ coverage/
 .idea/
 *.swp
 *.swo
+
+# Windows pseudo-files
+nul
