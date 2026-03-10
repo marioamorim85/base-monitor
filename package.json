@@ -4,9 +4,11 @@
   "description": "Sistema de monitorização de anúncios de contratação pública do portal BASE",
   "private": true,
   "scripts": {
-    "setup": "supabase start && supabase db reset && npx tsx scripts/import-cpvs.ts",
+    "setup:base": "npx supabase start && npx supabase db reset && npm run import-cpvs",
+    "setup": "npm run setup:base && copy /Y .env supabase\\functions\\.env && start \"BASE Monitor Functions\" cmd /k \"cd /d %CD% && npx supabase functions serve --env-file supabase/functions/.env\" && start \"BASE Monitor Web\" cmd /k \"cd /d %CD%\\apps\\web && npm install && npm run dev\"",
     "dev": "cd apps/web && npm install && npm run dev",
-    "functions": "supabase functions serve --env-file supabase/functions/.env",
+    "functions": "npx supabase functions serve --env-file supabase/functions/.env",
+    "import-cpvs": "cd scripts && npm install && npx tsx import-cpvs.ts",
     "cron": "cd supabase/cron && npm install && npx tsx run.ts",
     "cron:once": "cd supabase/cron && npm install && npx tsx run.ts --once"
   },

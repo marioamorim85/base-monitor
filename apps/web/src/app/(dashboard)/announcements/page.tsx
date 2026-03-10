@@ -97,7 +97,7 @@ export default async function AnnouncementsPage({
                   CPV
                 </th>
                 <th className="text-right px-4 py-3 font-medium text-gray-400 text-xs uppercase tracking-wider">
-                  Preco Base
+                  Preço Base
                 </th>
                 <th className="text-center px-4 py-3 font-medium text-gray-400 text-xs uppercase tracking-wider">
                   Estado

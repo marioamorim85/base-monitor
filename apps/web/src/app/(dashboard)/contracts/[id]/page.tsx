@@ -146,7 +146,7 @@ export default async function ContractDetailPage({
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-xs text-gray-400 mb-1">Preco Base</p>
+            <p className="text-xs text-gray-400 mb-1">Preço Base</p>
             <p className="text-lg font-medium text-gray-600">
               {contract.base_price != null
                 ? `${Number(contract.base_price).toLocaleString("pt-PT", { minimumFractionDigits: 2 })} \u20AC`
@@ -154,7 +154,7 @@ export default async function ContractDetailPage({
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-1">Preco Contratual</p>
+            <p className="text-xs text-gray-400 mb-1">Preço Contratual</p>
             <p className="text-lg font-bold text-brand-700">
               {contract.contract_price != null
                 ? `${Number(contract.contract_price).toLocaleString("pt-PT", { minimumFractionDigits: 2 })} \u20AC`
@@ -162,7 +162,7 @@ export default async function ContractDetailPage({
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-1">Preco Efectivo</p>
+            <p className="text-xs text-gray-400 mb-1">Preço Efectivo</p>
             <p className={`text-lg font-medium ${contract.status === "modified" ? "text-amber-700" : "text-gray-600"}`}>
               {contract.effective_price != null
                 ? `${Number(contract.effective_price).toLocaleString("pt-PT", { minimumFractionDigits: 2 })} \u20AC`
@@ -247,7 +247,7 @@ export default async function ContractDetailPage({
           )}
         </InfoCard>
 
-        {/* Local de execucao */}
+        {/* Local de execução */}
         {locations.length > 0 && (
           <InfoCard title="Local de Execução">
             {locations.map((loc, i) => (
@@ -332,7 +332,7 @@ export default async function ContractDetailPage({
         </div>
       )}
 
-      {/* Descricao */}
+      {/* Descrição */}
       {contract.description && (
         <div className="bg-white border border-surface-200 rounded-xl p-5 shadow-card">
           <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 mb-2">
@@ -342,7 +342,7 @@ export default async function ContractDetailPage({
         </div>
       )}
 
-      {/* Observacoes */}
+      {/* Observações */}
       {contract.observations && (
         <div className="bg-white border border-surface-200 rounded-xl p-5 shadow-card">
           <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 mb-2">

@@ -203,7 +203,7 @@ export default async function DashboardPage() {
 
       {isInitialised && (
         <>
-          {/* Anuncios section */}
+          {/* Anúncios section */}
           <div className="space-y-3">
             <SectionHeader
               title="Anúncios"

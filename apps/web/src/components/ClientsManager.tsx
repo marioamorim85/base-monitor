@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import CpvSearchInput, { type CpvCode } from "./CpvSearchInput";
 
@@ -53,31 +54,26 @@ function ClientForm({
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Company */}
         <div className="md:col-span-2">
           <label className={LABEL}>Nome da Empresa *</label>
           <input name="company_name" required className={INPUT} placeholder="Empresa, Lda." defaultValue={initialData?.company_name ?? ""} />
         </div>
 
-        {/* Contact person */}
         <div>
           <label className={LABEL}>Pessoa Responsável</label>
           <input name="contact_name" className={INPUT} placeholder="João Silva" defaultValue={initialData?.contact_name ?? ""} />
         </div>
 
-        {/* Phone */}
         <div>
           <label className={LABEL}>Telemóvel</label>
           <input name="phone" type="tel" className={INPUT} placeholder="+351 912 345 678" defaultValue={initialData?.phone ?? ""} />
         </div>
 
-        {/* Email */}
         <div className="md:col-span-2">
           <label className={LABEL}>Email *</label>
           <input name="email" type="email" required className={INPUT} placeholder="contacto@empresa.pt" defaultValue={initialData?.email ?? ""} />
         </div>
 
-        {/* Notify mode */}
         <div>
           <label className={LABEL}>Modo de notificação</label>
           <select name="notify_mode" className={INPUT} defaultValue={initialData?.notify_mode ?? "instant"}>
@@ -87,7 +83,6 @@ function ClientForm({
           </select>
         </div>
 
-        {/* Max emails */}
         <div>
           <label className={LABEL}>Máx. emails/dia</label>
           <input
@@ -201,7 +196,6 @@ function CpvRuleForm({
         </button>
       </div>
 
-      {/* Selected CPVs chips */}
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selected.map((cpv) => (
@@ -216,7 +210,7 @@ function CpvRuleForm({
                 onClick={() => removeSelected(cpv.id)}
                 className="text-brand-400 hover:text-brand-700 ml-0.5"
               >
-                ✕
+                x
               </button>
             </span>
           ))}
@@ -250,6 +244,7 @@ export default function ClientsManager({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const router = useRouter();
   const supabase = createClient();
 
   async function reload() {
@@ -258,8 +253,10 @@ export default function ClientsManager({
       .select(
         "id, name, company_name, contact_name, phone, email, is_active, notify_mode, max_emails_per_day, created_at, client_cpv_rules (id, pattern, match_type, is_exclusion)",
       )
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
     if (data) setClients(data as Client[]);
+    router.refresh();
   }
 
   async function addClient(e: React.FormEvent<HTMLFormElement>) {
@@ -320,7 +317,6 @@ export default function ClientsManager({
     await reload();
   }
 
-
   async function deleteRule(ruleId: string) {
     await supabase.from("client_cpv_rules").delete().eq("id", ruleId);
     await reload();
@@ -358,126 +354,123 @@ export default function ClientsManager({
               initialData={client}
             />
           ) : (
-          <div key={client.id} className="bg-white border border-surface-200 rounded-xl shadow-card">
+            <div key={client.id} className="bg-white border border-surface-200 rounded-xl shadow-card">
+              <div className="flex items-start gap-4 px-5 py-4">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-gray-900">
+                      {client.company_name || client.name}
+                    </p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${client.is_active ? "bg-brand-50 text-brand-700 border border-brand-200" : "bg-surface-100 text-gray-400 border border-surface-200"}`}>
+                      {client.is_active ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
 
-            {/* Client header */}
-            <div className="flex items-start gap-4 px-5 py-4">
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-gray-900">
-                    {client.company_name || client.name}
-                  </p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${client.is_active ? "bg-brand-50 text-brand-700 border border-brand-200" : "bg-surface-100 text-gray-400 border border-surface-200"}`}>
-                    {client.is_active ? "Activo" : "Inactivo"}
-                  </span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-gray-500">
+                    {client.contact_name && (
+                      <span>{client.contact_name}</span>
+                    )}
+                    <span>{client.email}</span>
+                    {client.phone && (
+                      <span>{client.phone}</span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <span className="text-xs bg-surface-100 text-gray-500 px-2 py-0.5 rounded-full border border-surface-200">
+                      {client.notify_mode === "instant" ? "Imediato" : client.notify_mode === "daily_digest" ? "Resumo diário" : "Resumo semanal"}
+                    </span>
+                    <span className="text-xs bg-surface-100 text-gray-500 px-2 py-0.5 rounded-full border border-surface-200">
+                      máx. {client.max_emails_per_day} emails/dia
+                    </span>
+                    <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 font-medium">
+                      {client.client_cpv_rules.length} regra{client.client_cpv_rules.length !== 1 ? "s" : ""} CPV
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-gray-500">
-                  {client.contact_name && (
-                    <span>👤 {client.contact_name}</span>
-                  )}
-                  <span>✉ {client.email}</span>
-                  {client.phone && (
-                    <span>📱 {client.phone}</span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  <span className="text-xs bg-surface-100 text-gray-500 px-2 py-0.5 rounded-full border border-surface-200">
-                    {client.notify_mode === "instant" ? "Imediato" : client.notify_mode === "daily_digest" ? "Resumo diário" : "Resumo semanal"}
-                  </span>
-                  <span className="text-xs bg-surface-100 text-gray-500 px-2 py-0.5 rounded-full border border-surface-200">
-                    máx. {client.max_emails_per_day} emails/dia
-                  </span>
-                  <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200 font-medium">
-                    {client.client_cpv_rules.length} regra{client.client_cpv_rules.length !== 1 ? "s" : ""} CPV
-                  </span>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => { setEditingId(client.id); setError(null); }}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-white border border-surface-200 px-2.5 py-1 rounded-lg transition-all shadow-card"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => toggleActive(client)}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-white border border-surface-200 px-2.5 py-1 rounded-lg transition-all shadow-card"
+                    >
+                      {client.is_active ? "Desactivar" : "Activar"}
+                    </button>
+                    <button
+                      onClick={() => setExpandedId(expandedId === client.id ? null : client.id)}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-lg transition-all shadow-sm"
+                    >
+                      Regras CPV
+                    </button>
+                    <button
+                      onClick={() => deleteClient(client.id)}
+                      className="text-xs text-gray-300 hover:text-red-500 transition-colors px-1.5 py-1"
+                    >
+                      x
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {isAdmin && (
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => { setEditingId(client.id); setError(null); }}
-                    className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-white border border-surface-200 px-2.5 py-1 rounded-lg transition-all shadow-card"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => toggleActive(client)}
-                    className="text-xs font-medium text-gray-500 hover:text-gray-700 bg-white border border-surface-200 px-2.5 py-1 rounded-lg transition-all shadow-card"
-                  >
-                    {client.is_active ? "Desactivar" : "Activar"}
-                  </button>
-                  <button
-                    onClick={() => setExpandedId(expandedId === client.id ? null : client.id)}
-                    className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-lg transition-all shadow-sm"
-                  >
-                    Regras CPV
-                  </button>
-                  <button
-                    onClick={() => deleteClient(client.id)}
-                    className="text-xs text-gray-300 hover:text-red-500 transition-colors px-1.5 py-1"
-                  >
-                    ✕
-                  </button>
+              {expandedId === client.id && (
+                <div className="border-t border-surface-200 px-5 py-4 bg-surface-50 space-y-3 rounded-b-xl">
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400">Regras CPV</h4>
+
+                  {client.client_cpv_rules.length === 0 ? (
+                    <p className="text-sm text-gray-400">Sem regras definidas</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {client.client_cpv_rules.map((rule) => (
+                        <div key={rule.id} className="flex items-center gap-2 text-sm">
+                          <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${rule.is_exclusion ? "bg-red-50 text-red-600 border border-red-200" : "bg-brand-50 text-brand-700 border border-brand-200"}`}>
+                            {rule.is_exclusion ? "EXCL" : "INCL"}
+                          </span>
+                          <span className="text-xs font-mono bg-surface-100 px-2 py-0.5 rounded-md text-gray-500 border border-surface-200">
+                            {rule.match_type}
+                          </span>
+                          <span className="font-mono text-gray-800 text-sm flex-1">
+                            {rule.pattern}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              onClick={() => deleteRule(rule.id)}
+                              className="text-red-400 hover:text-red-600 text-xs transition-colors"
+                            >
+                              x
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <CpvRuleForm
+                      onAdd={async (pattern, matchType, isExclusion) => {
+                        const { error: err } = await supabase.from("client_cpv_rules").insert({
+                          tenant_id: tenantId,
+                          client_id: client.id,
+                          pattern,
+                          match_type: matchType,
+                          is_exclusion: isExclusion,
+                        });
+                        if (err) { setError(err.message); return; }
+                        await reload();
+                      }}
+                    />
+                  )}
+
+                  {error && <p className="text-red-600 text-sm">{error}</p>}
                 </div>
               )}
             </div>
-
-            {/* CPV rules panel */}
-            {expandedId === client.id && (
-              <div className="border-t border-surface-200 px-5 py-4 bg-surface-50 space-y-3 rounded-b-xl">
-                <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400">Regras CPV</h4>
-
-                {client.client_cpv_rules.length === 0 ? (
-                  <p className="text-sm text-gray-400">Sem regras definidas</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {client.client_cpv_rules.map((rule) => (
-                      <div key={rule.id} className="flex items-center gap-2 text-sm">
-                        <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${rule.is_exclusion ? "bg-red-50 text-red-600 border border-red-200" : "bg-brand-50 text-brand-700 border border-brand-200"}`}>
-                          {rule.is_exclusion ? "EXCL" : "INCL"}
-                        </span>
-                        <span className="text-xs font-mono bg-surface-100 px-2 py-0.5 rounded-md text-gray-500 border border-surface-200">
-                          {rule.match_type}
-                        </span>
-                        <span className="font-mono text-gray-800 text-sm flex-1">
-                          {rule.pattern}
-                        </span>
-                        {isAdmin && (
-                          <button
-                            onClick={() => deleteRule(rule.id)}
-                            className="text-red-400 hover:text-red-600 text-xs transition-colors"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {isAdmin && (
-                  <CpvRuleForm
-                    onAdd={async (pattern, matchType, isExclusion) => {
-                      const { error: err } = await supabase.from("client_cpv_rules").insert({
-                        tenant_id: tenantId,
-                        client_id: client.id,
-                        pattern,
-                        match_type: matchType,
-                        is_exclusion: isExclusion,
-                      });
-                      if (err) { setError(err.message); return; }
-                      await reload();
-                    }}
-                  />
-                )}
-
-                {error && <p className="text-red-600 text-sm">{error}</p>}
-              </div>
-            )}
-          </div>
           )
         )}
 
