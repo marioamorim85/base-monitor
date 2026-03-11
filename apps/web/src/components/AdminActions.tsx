@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 interface Action {
@@ -9,6 +10,12 @@ interface Action {
   variant: "primary" | "secondary" | "init";
   body?: Record<string, unknown>;
 }
+
+const ANN_WARNING_DAYS = 16;
+const ANN_MAX_DAYS = 31;
+const CONTRACT_WARNING_DAYS = 8;
+const CONTRACT_MAX_DAYS = 15;
+const MIN_INGEST_DATE = "2026-01-01";
 
 function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -21,7 +28,65 @@ function defaultDates() {
   return { from: isoDate(minus2), to: isoDate(today) };
 }
 
-const BTN_BASE = "text-sm font-medium px-4 py-2 rounded-xl transition-all disabled:opacity-40";
+function diffDaysInclusive(fromDate: string, toDate: string) {
+  const from = new Date(`${fromDate}T00:00:00Z`).getTime();
+  const to = new Date(`${toDate}T00:00:00Z`).getTime();
+  return Math.floor((to - from) / 86400000) + 1;
+}
+
+function validateBaseRange(fromDate: string, toDate: string) {
+  if (!fromDate || !toDate) return "Selecione as duas datas.";
+  if (fromDate < MIN_INGEST_DATE || toDate < MIN_INGEST_DATE) {
+    return `A ingestao manual so permite datas a partir de ${MIN_INGEST_DATE}.`;
+  }
+  if (fromDate > toDate) return "A data inicial tem de ser anterior ou igual a data final.";
+  return null;
+}
+
+function getRangePolicy(fn: string, fromDate: string, toDate: string) {
+  const baseError = validateBaseRange(fromDate, toDate);
+  if (baseError) return { disabled: true, warning: null as string | null, error: baseError };
+
+  const days = diffDaysInclusive(fromDate, toDate);
+
+  if (fn === "ingest-base") {
+    if (days > ANN_MAX_DAYS) {
+      return {
+        disabled: true,
+        warning: null,
+        error: `Intervalo demasiado grande para anuncios (${days} dias). Use blocos de ate ${ANN_MAX_DAYS} dias.`,
+      };
+    }
+    if (days > ANN_WARNING_DAYS) {
+      return {
+        disabled: false,
+        warning: `Anuncios: ${days} dias pode demorar. Prefira blocos quinzenais.`,
+        error: null,
+      };
+    }
+  }
+
+  if (fn === "ingest-contracts") {
+    if (days > CONTRACT_MAX_DAYS) {
+      return {
+        disabled: true,
+        warning: null,
+        error: `Intervalo demasiado grande para contratos (${days} dias). Use blocos de ate ${CONTRACT_MAX_DAYS} dias.`,
+      };
+    }
+    if (days > CONTRACT_WARNING_DAYS) {
+      return {
+        disabled: false,
+        warning: `Contratos: ${days} dias tem risco elevado de demorar. Prefira blocos semanais.`,
+        error: null,
+      };
+    }
+  }
+
+  return { disabled: false, warning: null as string | null, error: null as string | null };
+}
+
+const BTN_BASE = "text-sm font-medium px-4 py-2 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed";
 const BTN_STYLES: Record<string, string> = {
   primary: `${BTN_BASE} bg-brand-600 hover:bg-brand-700 text-white shadow-sm hover:shadow-md`,
   secondary: `${BTN_BASE} bg-white border border-surface-200 text-gray-700 hover:bg-surface-50 hover:border-gray-300 shadow-card`,
@@ -44,8 +109,13 @@ export default function AdminActions({
   const [fromDate, setFromDate] = useState(defaults.from);
   const [toDate, setToDate] = useState(defaults.to);
 
+  const router = useRouter();
   const supabase = createClient();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+  const globalDateError = useMemo(() => validateBaseRange(fromDate, toDate), [fromDate, toDate]);
+  const announcementsPolicy = useMemo(() => getRangePolicy("ingest-base", fromDate, toDate), [fromDate, toDate]);
+  const contractsPolicy = useMemo(() => getRangePolicy("ingest-contracts", fromDate, toDate), [fromDate, toDate]);
 
   async function callFn(fn: string, body: Record<string, unknown> = {}) {
     setLoading(fn);
@@ -75,7 +145,7 @@ export default function AdminActions({
       if (!res.ok) throw new Error((data as Record<string, string>)?.error ?? `HTTP ${res.status}`);
 
       setResults((prev) => [{ fn, data }, ...prev.slice(0, 4)]);
-
+      router.refresh();
       if (fn === "admin-seed") window.location.reload();
     } catch (e) {
       setError(`${fn}: ${String(e)}`);
@@ -86,11 +156,10 @@ export default function AdminActions({
 
   return (
     <div className="space-y-4">
-      {/* Ingest date range */}
       {isInitialised && (
         <div className="bg-surface-50 border border-surface-200 rounded-xl p-4 space-y-3">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-            Intervalo de ingestão
+            Intervalo de ingestao
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -99,6 +168,7 @@ export default function AdminActions({
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
+                min={MIN_INGEST_DATE}
                 className={INPUT_CLASS}
               />
             </div>
@@ -108,14 +178,39 @@ export default function AdminActions({
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
+                min={MIN_INGEST_DATE}
                 className={INPUT_CLASS}
               />
             </div>
           </div>
+
+          {globalDateError && (
+            <div className="text-sm bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+              {globalDateError}
+            </div>
+          )}
+
+          {!globalDateError && (announcementsPolicy.warning || contractsPolicy.warning) && (
+            <div className="space-y-2">
+              {announcementsPolicy.warning && (
+                <div className="text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3">
+                  {announcementsPolicy.warning}
+                </div>
+              )}
+              {contractsPolicy.warning && (
+                <div className="text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3">
+                  {contractsPolicy.warning}
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">
+            Limites: anuncios ate {ANN_MAX_DAYS} dias e contratos ate {CONTRACT_MAX_DAYS} dias, devido a quantidade de dados processados pela API BASE em cada pedido.
+          </p>
         </div>
       )}
 
-      {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
         {!isInitialised && (
           <button
@@ -130,15 +225,23 @@ export default function AdminActions({
         {actions.map(({ fn, label, variant, body }) => {
           const needsDates =
             fn === "ingest-base" || fn === "ingest-contracts" || fn === "match-and-queue";
+          const policy = fn === "ingest-base"
+            ? announcementsPolicy
+            : fn === "ingest-contracts"
+            ? contractsPolicy
+            : { disabled: !!globalDateError, warning: null, error: globalDateError };
           const effectiveBody = needsDates
             ? { ...body, from_date: fromDate, to_date: toDate }
             : body ?? {};
+          const disabled = !!loading || (needsDates && policy.disabled);
+          const title = policy.error ?? undefined;
 
           return (
             <button
               key={`${fn}-${label}`}
               onClick={() => callFn(fn, effectiveBody)}
-              disabled={!!loading}
+              disabled={disabled}
+              title={title}
               className={BTN_STYLES[variant] ?? BTN_STYLES.secondary}
             >
               {loading === fn ? "A processar..." : label}
@@ -153,7 +256,6 @@ export default function AdminActions({
         </div>
       )}
 
-      {/* Progress indicator */}
       {loading && (
         <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm">
           <svg className="animate-spin h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
